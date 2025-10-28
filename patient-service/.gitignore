@@ -33,3 +33,5 @@ build/
 .vscode/
 
 /src/main/resources/application.properties
+/db_volumes/
+docker-compose.yml
