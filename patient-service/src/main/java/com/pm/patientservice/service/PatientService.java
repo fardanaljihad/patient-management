@@ -10,6 +10,7 @@ import com.pm.patientservice.dto.PatientRequest;
 import com.pm.patientservice.dto.PatientResponse;
 import com.pm.patientservice.exception.EmailAlreadyExistsException;
 import com.pm.patientservice.exception.PatientNotFoundException;
+import com.pm.patientservice.grpc.BillingServiceGrpcClient;
 import com.pm.patientservice.mapper.PatientMapper;
 import com.pm.patientservice.model.Patient;
 import com.pm.patientservice.repository.PatientRepository;
@@ -21,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 public class PatientService {
     
     private final PatientRepository patientRepository;
+    private final BillingServiceGrpcClient billingServiceGrpcClient;
 
     public List<PatientResponse> getPatients() {
         List<Patient> patients = patientRepository.findAll();
@@ -34,7 +36,11 @@ public class PatientService {
         if (isExists) {
             throw new EmailAlreadyExistsException("A patient with this email already exists " + request.getEmail());
         }
+
         Patient patient = patientRepository.save(PatientMapper.toModel(request));
+
+        billingServiceGrpcClient.createBillingAccount(patient.getId().toString(), patient.getName(), patient.getEmail());
+
         return PatientMapper.toDTO(patient);
     }
 
