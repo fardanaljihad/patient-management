@@ -3,34 +3,59 @@ services:
     image: postgres:latest
     container_name: patient-service-db
     environment:
-      POSTGRES_USER: <username>
-      POSTGRES_PASSWORD: <password>
+      POSTGRES_USER: admin_user
+      POSTGRES_PASSWORD: secret123
       POSTGRES_DB: db
     ports:
       - "5432:5432"
     volumes:
-      - /<host_path>:/var/lib/postgresql
+      - ./db_volumes/patient-service-db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin_user -d db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
-      - internal
+      - patient-management
+
+  kafka:
+    image: apache/kafka:latest
+    environment:
+      - KAFKA_NODE_ID=0
+      - KAFKA_PROCESS_ROLES=controller,broker
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+    networks:
+      - patient-management
 
   patient-service: 
     build: . 
     container_name: patient-service 
-    depends_on: 
-      - patient-service-db 
     environment: 
       SPRING_DATASOURCE_URL: jdbc:postgresql://patient-service-db:5432/db 
-      SPRING_DATASOURCE_USERNAME: <username>
-      SPRING_DATASOURCE_PASSWORD: <password> 
+      SPRING_DATASOURCE_USERNAME: admin_user
+      SPRING_DATASOURCE_PASSWORD: secret123 
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_SQL_INIT_MODE: always
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       BILLING_SERVICE_ADDRESS: billing-service
       BILLING_SERVICE_GRPC_PORT: 9001
     ports: 
       - "4000:4000"
+    depends_on: 
+      patient-service-db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
     networks: 
-      - internal
+      - patient-management
 
 networks:
-  internal:
-    driver: bridge
+  patient-management:
+    external: true
