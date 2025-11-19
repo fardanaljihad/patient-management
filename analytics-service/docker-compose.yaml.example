@@ -1,0 +1,14 @@
+services:
+  analytics-service: 
+    build: . 
+    container_name: analytics-service
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports: 
+      - "4002:4002"
+    networks: 
+      - patient-management
+
+networks:
+  patient-management:
+    external: true
